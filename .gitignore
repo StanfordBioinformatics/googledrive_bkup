@@ -1,4 +1,5 @@
 *.pyc
-client_registration.json
+*.json
+client_secret*
 __pycache__
 
