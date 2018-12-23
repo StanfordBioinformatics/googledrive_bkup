@@ -1,4 +1,5 @@
 import io
+import logging
 import mimetypes
 import os
 import pdb
@@ -8,6 +9,24 @@ from httplib2 import Http
 import oauth2client
 import oauth2client.tools
 import oauth2client.file
+
+import googledrive_bkup as b
+
+debug_logger = logging.getLogger(b.DEBUG_LOGGER_NAME)
+error_logger = logging.getLogger(b.ERROR_LOGGER_NAME)
+
+#: bkup logger name
+BKUP_LOGGER_NAME = __package__ + "_bkup"
+#: A ``logging`` instance that accepts messages at the INFO level and appends them to a file.
+#: Each message is written with two tab-delimted fields: 1) The uploaded file name that the
+#: user provided, and 2) It's file ID on Google Drive.
+bkup_logger = logging.getLogger(BKUP_LOGGER_NAME)
+bkup_logger.setLevel(logging.INFO)
+file_name = os.path.join(LOG_DIR, "log_" + BKUP_LOGGER_NAME + ".txt")
+file_handler = logging.FileHandler(filename=file_name, mode="a")
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(d.f_formatter)
+bkup_logger.addHandler(file_handler)
 
 #
 ## See list of scopes at https://developers.google.com/drive/api/v3/about-auth.
@@ -20,6 +39,7 @@ class MissingClientRegistration(Exception):
     pass
 
 class Drive():
+
     def __init__(self, client_token_file="", client_registration_file=""):
         """
         Args:
@@ -146,7 +166,11 @@ class Drive():
             "parents": [folder_id]
         }
         media = googleapiclient.http.MediaIoBaseUpload(open(infile, "rb"), mimetype=mimetype, resumable=True)
+        debug_logger.debug("Uploading '{}'.".format(filename))
         file_id = self.service.files().create(body=meta, media_body=media, fields='id').execute()
+        msg = infile + "\t" + file_id + "\n"
+        debug_Logger.debug(msg)
+        bkup_logger.info(msg)
         return file_id
 
     def mkdir(self, name):

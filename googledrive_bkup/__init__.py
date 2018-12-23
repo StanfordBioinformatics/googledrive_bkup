@@ -43,9 +43,20 @@ if not os.path.exists(LOG_DIR):
 
 f_formatter = logging.Formatter('%(asctime)s:%(name)s:\t%(message)s')
 
+#: The name of the debug ``logging`` instance.
+DEBUG_LOGGER_NAME = "eu_debug"
+#: A ``logging`` instance that logs all messages sent to it to STDOUT.
+debug_logger = logging.getLogger(DEBUG_LOGGER_NAME)
+debug_logger.setLevel(logging.DEBUG )
+f_formatter = logging.Formatter('%(asctime)s:%(name)s:\t%(message)s')
+ch = logging.StreamHandler(stream=sys.stdout)
+ch.setLevel(logging.DEBUG )
+ch.setFormatter(f_formatter)
+debug_logger.addHandler(ch)
+
 #: The name of the error ``logging`` instance.
 ERROR_LOGGER_NAME = __package__ + "_error"
-#: A ``logging`` instance that accepts messages at the ERROR level.
+#: A ``logging`` instance that accepts messages at the ERROR level and appends them to a file.
 error_logger = logging.getLogger(ERROR_LOGGER_NAME)
 error_logger.setLevel(logging.ERROR)
 file_name = os.path.join(LOG_DIR, "log_" + ERROR_LOGGER_NAME + ".txt")
@@ -53,13 +64,3 @@ file_handler = logging.FileHandler(filename=file_name, mode="a")
 file_handler.setLevel(logging.ERROR)
 file_handler.setFormatter(f_formatter)
 error_logger.addHandler(file_handler)
-
-#: bkup logger name
-BKUP_LOGGER_NAME = __package__ + "_bkup"
-bkup_logger = logging.getLogger(BKUP_LOGGER_NAME)
-bkup_logger.setLevel(logging.INFO)
-file_name = os.path.join(LOG_DIR, "log_" + BKUP_LOGGER_NAME + ".txt")
-file_handler = logging.FileHandler(filename=file_name, mode="a")
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(f_formatter)
-bkup_logger.addHandler(file_handler)
