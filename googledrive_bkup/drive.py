@@ -140,7 +140,7 @@ class Drive():
         # meta is a dict that looks like
         # {'kind': 'drive#file', 'id': '0BxBVcx6RbBMLbTFwbDBVdllZSUR1SDNVRklaQ1BSajlsNGxR', 'name': 'image1.JPG', 'mimeType': 'image/jpeg'}
         # {'kind': 'drive#file', 'id': '1uaWo0Jsahb03hhuj70GLNm-IG_euvX6qIsIMY1EQ5Ug', 'name': 'Groceries', 'mimeType': 'application/vnd.google-apps.document'}
-        meta = self.service.files().get(fileId=file_id).execute()
+        meta = self.service.files().get(fileId=file_id, supportsTeamDrives=True).execute()
         name = meta["name"]
         mime_type = meta["mimeType"]
         mime_type = self.translate_google_mime_type(mime_type)
@@ -181,6 +181,95 @@ class Drive():
         file_id = self.service.files().create(body=meta, fields="id").execute()
         return file_id
 
+    def teamdrives(self):
+        """
+        Returns:
+            `dict` of the form {"teamdrive_id": "teamdrive_name"}.
+        """
+        res = self.service.teamdrives().list().execute()["teamDrives"]
+        #i.e. [{'kind': 'drive#teamDrive', 'id': '0AF69aIFJ45gyUk9PVA', 'name': 'ENCODE4 - ATAC-seq Production'}, {'kind': 'drive#teamDrive', 'id': '0AInssFUaRejcUk9PVA', 'name': 'Pulsar'}]
+        tds = {}
+        for i in res:
+            tds[i["id"]] = i["name"] 
+        return tds
+
+    def list_teamdrive_files(self, teamdrive_id, key_by):
+        """
+        Generates a dict. of all the files in the specified team drive. 
+
+        Args:
+            key_by: `str` being one of "id" or name". 
+            
+        Returns:
+            `dict` where keys are file identifiers or file names, depending on the choice of the
+                key_by parameter. If key_by="id", then the resulting dict is of the form:
+
+                {'1NN4RcQIFFPiL3qUzo7VH1I0ubPsZszoT': {
+                    'name': '40_A549_ZNF285_rep1_6sec.jpg', 
+                    'mimeType': 'image/jpeg', 
+                    'teamDriveId': '0AInssFUaRejcUk9PVA'
+                    }
+                }
+
+               But if key_by="name", then the resulting dict is of the form:
+
+                {'40_A549_ZNF285_rep1_6sec.jpg': {
+                    'id': '1NN4RcQIFFPiL3qUzo7VH1I0ubPsZszoT',
+                    'mimeType': 'image/jpeg', 
+                    'teamDriveId': '0AInssFUaRejcUk9PVA'
+                    }
+                }
+        """
+
+        key_by = key_by.lower()
+        if key_by not in ["id", "name"]:
+            raise Exception("The key_by parameter must be set to either 'id' or 'name'.")
+
+        def get_page(next_page_token=""):
+            """
+            Gets a single page of file list results from the specified Google Team Drive.
+  
+            Args:
+                next_page_token: `str`. The default empty string means to fetch the first page of
+                    results. Using the Google Drive API, fetching a page of results will default 
+                    100 items max per page. The next page of results can be fetched with a token
+                    named nextPageToken in the API result of the list operation. 
+  
+            Returns:
+                `list` of dicts, where each dict is of the form:
+  
+                 {'kind': 'drive#file', 
+                  'id': '1NN4RcQIFFPiL3qUzo7VH1I0ubPsZszoT', 
+                  'name': '40_A549_ZNF285_rep1_6sec.jpg',
+                  'mimeType': 'image/jpeg', 
+                  'teamDriveId': '0AInssFUaRejcUk9PVA'
+                 }
+            """
+            # By default, page size is 100 in Google's API. 
+            page_res = self.service.files().list(pageToken=next_page_token, corpora="teamDrive", teamDriveId=teamdrive_id, includeTeamDriveItems=True, supportsTeamDrives=True).execute()
+            try:
+                next_page_token = page_res["nextPageToken"]
+            except KeyError:
+                next_page_token = False        
+            return next_page_token, page_res["files"]
+
+        next_page_token, all_files = get_page()
+        while next_page_token:
+          next_page_token, page_files = get_page(next_page_token)
+          # res is a dict. with keys ['kind', 'nextPageToken', 'incompleteSearch', 'files']. 
+          all_files.extend(page_files)
+
+        file_dict = {}
+        if key_by == "id":
+            for i in all_files:
+                key = i.pop("id")
+                file_dict[key] = i
+        else:
+            for i in all_files:
+                key = i.pop("name")
+                file_dict[key] = i
+        return file_dict
+        
 
 if __name__ == '__main__':
     d = Drive()
@@ -188,6 +277,6 @@ if __name__ == '__main__':
     #d.download(file_id="0BxBVcx6RbBMLbTFwbDBVdllZSUR1SDNVRklaQ1BSajlsNGxR")
     #d.download(file_id="1HzyB_UCfO3kpp9EGNVKuyAqVQZVzNMQSIvmqxMkSwtk") # ppt
     #d.download(file_id="1EqvG_-h8XCRe0k5-RrV1dq-2-hfRF_9uT61E7nOTtco") # Google doc
-    d.download(file_id="0BxBVcx6RbBMLX09LZVpJTHhJMTFQbFk3QUdFb3JDNF9wck9j")
+    #d.download(file_id="0BxBVcx6RbBMLX09LZVpJTHhJMTFQbFk3QUdFb3JDNF9wck9j")
     #d.download(file_id="1M9GWZutVNdwtBmAR9gULzhizJOoYoy3l7j5Cz3WGxDs")
 
